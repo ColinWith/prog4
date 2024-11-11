@@ -45,6 +45,7 @@ var specularULoc; // where to put specular reflecivity for fragment shader
 var shininessULoc; // where to put specular exponent for fragment shader
 var alphaULoc; // where to put alpha value for fragment shader
 var textureIDULoc; // where to put textureID value for fragment shader
+var hasTextureULoc; // where to put whether or not the fragment shader should load a texture
 
 /* interaction variables */
 var Eye = vec3.clone(defaultEye); // eye position in world space
@@ -52,7 +53,35 @@ var Center = vec3.clone(defaultCenter); // view direction in world space
 var Up = vec3.clone(defaultUp); // view up vector in world space
 
 var showTriangles = true;
-var showEllispoids = false;
+var showEllispoids = true;
+var enableBackFaceCull = true;
+
+/* custom content */
+var customInputTriangles = [
+    {
+        "material": { "ambient": [0.1, 0.1, 0.1], "diffuse": [0.6, 0.4, 0.4], "specular": [0.3, 0.3, 0.3], "n": 11, "alpha": 0.9, "texture": "abe.png" },
+        "vertices": [[0.1, 0.3, 0.75], [0.25, 0.6, 0.75], [0.4, 0.3, 0.75]],
+        "normals": [[0, 0, -1], [0, 0, -1], [0, 0, -1]],
+        "uvs": [[0, 0], [0.5, 1], [1, 0]],
+        "triangles": [[0, 1, 2]]
+    },
+    {
+        "material": { "ambient": [0.1, 0.1, 0.1], "diffuse": [0.6, 0.6, 0.4], "specular": [0.3, 0.3, 0.3], "n": 17, "alpha": 0.3, "texture": "tree.png" },
+        "vertices": [[0.3, 0.1, 0.65], [0.3, 0.4, 0.65], [0.6, 0.4, 0.65], [0.6, 0.1, 0.65]],
+        "normals": [[0, 0, -1], [0, 0, -1], [0, 0, -1], [0, 0, -1]],
+        "uvs": [[0, 0], [0, 1], [1, 1], [1, 0]],
+        "triangles": [[0, 1, 2], [2, 3, 0]]
+    },
+    {
+        "material": { "ambient": [0.1, 0.1, 0.1], "diffuse": [0.0, 0.6, 0.0], "specular": [0.3, 0.3, 0.3], "n": 15, "alpha": 1.0, "texture": "" },
+        "vertices": [[0.65, 0.4, 0.45], [0.75, 0.6, 0.45], [0.85, 0.4, 0.45]],
+        "normals": [[0, 0, -1], [0, 0, -1], [0, 0, -1]],
+        "uvs": [[0, 0], [0.5, 1], [1, 0]],
+        "triangles": [[0, 1, 2]]
+    }
+]
+    ; // the custom triangle data as loaded from input files
+var useCustomInput = false;
 
 // ASSIGNMENT HELPER FUNCTIONS
 
@@ -269,7 +298,6 @@ function setupWebGL() {
     // Set up keys
     document.onkeydown = handleKeyDown; // call this when key pressed
 
-    
 
     var imageCanvas = document.getElementById("myImageCanvas"); // create a 2d canvas
       var cw = imageCanvas.width, ch = imageCanvas.height; 
@@ -288,19 +316,22 @@ function setupWebGL() {
     gl = canvas.getContext("webgl"); // get a webgl object from it
     
     try {
-      if (gl == null) {
-        throw "unable to create gl context -- is your browser gl ready?";
-      } else {
-        //gl.clearColor(0.0, 0.0, 0.0, 1.0); // use black when we clear the frame buffer
-        gl.clearDepth(1.0); // use max when we clear the depth buffer
-          gl.enable(gl.DEPTH_TEST); // use hidden surface removal (with zbuffering)
-          gl.enable(gl.BLEND); // enable blending
-          gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-      }
-    } // end try
-    
+        if (gl == null) {
+            throw "unable to create gl context -- is your browser gl ready?";
+        } else {
+            //gl.clearColor(0.0, 0.0, 0.0, 1.0); // use black when we clear the frame buffer
+            gl.clearDepth(1.0); // use max when we clear the depth buffer
+            gl.enable(gl.DEPTH_TEST); // use hidden surface removal (with zbuffering)
+            gl.enable(gl.BLEND); // enable blending
+            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+            if (enableBackFaceCull) {
+                gl.enable(gl.CULL_FACE); // use face culling
+                gl.cullFace(gl.BACK); // cull back facing polygons
+            }
+        }
+    } // end tr
     catch(e) {
-      console.log(e);
+        console.log(e);
     } // end catch
 
     loadImage(INPUT_DEFAULT_BACKGROUND_URL, true); // load background image
@@ -330,68 +361,86 @@ function requestCORSIfNotSameOrigin(img, url) {
  * @returns textureInfo {width, height, texture, id}
  */
 function loadImage(url, isBackGround) {
-    const tex = gl.createTexture();
-    var texID = (numTextures);
-    numTextures++; // increment number of textures
+    try {
+        if (url == String.null)
+            throw "Unable to load image file!";
+        else {
+            const tex = gl.createTexture();
+            var texID = (numTextures);
+            numTextures++; // increment number of textures
 
-    // texture storage
-    gl.activeTexture(gl.TEXTURE0 + texID);
-    gl.bindTexture(gl.TEXTURE_2D, tex);
+            // texture storage
+            gl.activeTexture(gl.TEXTURE0 + texID);
+            gl.bindTexture(gl.TEXTURE_2D, tex);
 
-    gl.bindTexture(gl.TEXTURE_2D, tex);
-    // Fill the texture with a 1x1 blue pixel
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE,
-        new Uint8Array([0, 0, 255, 255]));
+            gl.bindTexture(gl.TEXTURE_2D, tex);
+            // Fill the texture with a 1x1 blue pixel
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE,
+                new Uint8Array([0, 0, 255, 255]));
 
-    const img = new Image();
+            const img = new Image();
 
-    // texture wrapping & filtering
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            //// texture wrapping & filtering
+            //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+            //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
 
-    var textureInfo = {
-        id: texID,
-        width: 1,   // we don't know the size until it loads
-        height: 1,
-        texture: tex
-    };
+            var textureInfo = {
+                id: texID,
+                width: 1,   // we don't know the size until it loads
+                height: 1,
+                texture: tex
+            };
 
-    var imageCanvas = document.getElementById("myImageCanvas"); // create a 2d canvas
-    var cw = imageCanvas.width, ch = imageCanvas.height;
-    imageContext = imageCanvas.getContext("2d"); 
-    img.onload = function () {
-        textureInfo.width = img.width;
-        textureInfo.height = img.height;
+            var imageCanvas = document.getElementById("myImageCanvas"); // create a 2d canvas
+            var cw = imageCanvas.width, ch = imageCanvas.height;
+            imageContext = imageCanvas.getContext("2d");
+            img.onload = function () {
+                textureInfo.width = img.width;
+                textureInfo.height = img.height;
 
-        gl.bindTexture(gl.TEXTURE_2D, tex);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+                gl.bindTexture(gl.TEXTURE_2D, tex);
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
 
-        gl.generateMipmap(gl.TEXTURE_2D);
+                // Check if dimentions are a power of 2
+                if (img.width % 2 == 1 && img.height % 2 == 1) {
+                    // generate Mipmap for texture
+                    gl.generateMipmap(gl.TEXTURE_2D);
+                }
+                else {
+                    // texture wrapping & filtering
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+                }
 
-        if (isBackGround) {
-            imageContext.drawImage(img, 0, 0, textureInfo.width, textureInfo.height, 0, 0, cw, ch);
+                if (isBackGround) {
+                    imageContext.drawImage(img, 0, 0, textureInfo.width, textureInfo.height, 0, 0, cw, ch);
+                }
+
+            };
+            requestCORSIfNotSameOrigin(img, url);
+            img.src = url;
+            textureInfo.image = img;
+
+            textures.push(textureInfo);
+            //console.log("path: " + url + ", texture: " + textureInfo.texture + ", id: " + textureInfo.id);
+
+            return textureInfo;
         }
-
-
-    };
-    requestCORSIfNotSameOrigin(img, url);
-    img.src = url;
-    textureInfo.image = img;
-
-    //// texture storage
-    //gl.activeTexture(gl.TEXTURE0 + texID);
-    //gl.bindTexture(gl.TEXTURE_2D, tex);
-
-    textures.push(textureInfo);
-    //console.log("path: " + url + ", texture: " + textureInfo.texture + ", id: " + textureInfo.id);
-
-    return textureInfo;
+    } // end try
+    catch (e) {
+        console.log(e);
+    } // end catch
 }
 
-function compareAlpha(a, b) {
+function compareTriSetAlpha(a, b) {
     return b.material.alpha - a.material.alpha;
     
+}
+function compareEllipsoidAlpha(a, b) {
+    return b.alpha - a.alpha;
+
 }
 
 function compareZDepth(a, b) {
@@ -467,6 +516,20 @@ function loadModels() {
                             return(2/(currEllipsoid.c*currEllipsoid.c) * (val-currEllipsoid.z));
                     } // end switch
                 }); 
+
+                // make UVs
+                var ellipsoidUVs = []; // empty list of ellipsoidUVs
+                for (var idx = 0; idx < ellipsoidVertices.length; idx += 3) {
+                    if (idx % 3 == 0) {
+                        var temp = vec3.create();
+                        var surfacePoint = vec3.fromValues(ellipsoidVertices[idx], ellipsoidVertices[idx + 1], ellipsoidVertices[idx + 2]);
+                        var ellipsoidCenter = vec3.fromValues(currEllipsoid.x, currEllipsoid.y, currEllipsoid.z);
+                        var n = vec3.normalize(temp, vec3.subtract(temp, surfacePoint, ellipsoidCenter));
+                        var u = Math.atan2(n[0], n[2]) / (2 * Math.PI) + 0.5;
+                        var v = n[1] * 0.5 + 0.5;
+                        ellipsoidUVs.push(u, v);
+                    }
+                }
                 
                 // make triangles, from south pole to middle latitudes to north pole
                 var ellipsoidTriangles = []; // triangles to return
@@ -488,7 +551,7 @@ function loadModels() {
                 ellipsoidTriangles.push(ellipsoidVertices.length/3-2,ellipsoidVertices.length/3-1,
                                         ellipsoidVertices.length/3-numLongSteps-1); // longitude wrap
             } // end if good number longitude steps
-            return({vertices:ellipsoidVertices, normals:ellipsoidNormals, triangles:ellipsoidTriangles});
+            return({vertices:ellipsoidVertices, normals:ellipsoidNormals, uvs:ellipsoidUVs, triangles:ellipsoidTriangles});
         } // end try
         
         catch(e) {
@@ -496,9 +559,15 @@ function loadModels() {
         } // end catch
     } // end make ellipsoid
 
-    inputTriangles = getJSONFile(INPUT_TRIANGLES_URL,"triangles"); // read in the triangle data
-    //var tempInputTriangles = getJSONFile(INPUT_TRIANGLES_URL, "triangles"); // read in the triangle data
+    if (useCustomInput) {
+        inputTriangles = customInputTriangles;
+    }
+    else {
+        inputTriangles = getJSONFile(INPUT_TRIANGLES_URL,"triangles"); // read in the triangle data
 
+    }
+    //inputTriangles = getJSONFile(INPUT_TRIANGLES_URL,"triangles"); // read in the triangle data
+    
     try {
         if (inputTriangles == String.null)
             throw "Unable to load triangles file!";
@@ -515,7 +584,7 @@ function loadModels() {
             numTriangleSets = inputTriangles.length; // remember how many tri sets
 
             // order triangle sets by opacity
-            inputTriangles.sort(compareAlpha);
+            inputTriangles.sort(compareTriSetAlpha);
             //inputTriangles.sort(compareZDepth);
 
             // process each triangle set to load webgl vertex and triangle buffers
@@ -562,9 +631,16 @@ function loadModels() {
                 gl.bindBuffer(gl.ARRAY_BUFFER, uvBuffers[whichSet]); // activate that buffer
                 gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(inputTriangles[whichSet].glUVs), gl.STATIC_DRAW); // data in
 
-                // set up the textureIDs for each 
-                inputTriangles[whichSet].glTextureID = loadImage(INPUT_PROG_URL + inputTriangles[whichSet].material.texture, false).id;
-                //console.log("inputTriangles[" + whichSet + "].glTextureID: " + inputTriangles[whichSet].glTextureID);
+                // set up the textureIDs for each (if any)
+                if (inputTriangles[whichSet].material.texture != String.null
+                        && inputTriangles[whichSet].material.texture != "") {
+                    inputTriangles[whichSet].glTextureID = loadImage(INPUT_PROG_URL + inputTriangles[whichSet].material.texture, false).id;
+                    //console.log("inputTriangles[" + whichSet + "].glTextureID: " + inputTriangles[whichSet].glTextureID);
+                }
+                else {
+                    inputTriangles[whichSet].glTextureID = -1; // no texture
+                }
+                
 
                 // set up the triangle index array, adjusting indices across sets
                 inputTriangles[whichSet].glTriangles = []; // flat index list for webgl
@@ -586,7 +662,10 @@ function loadModels() {
             if (inputEllipsoids == String.null)
                 throw "Unable to load ellipsoids file!";
             else {
-                
+
+                // sort ellipsoids by alpha
+                inputEllipsoids.sort(compareEllipsoidAlpha);
+
                 // init ellipsoid highlighting, translation and rotation; update bbox
                 var ellipsoid; // current ellipsoid
                 var ellipsoidModel; // current ellipsoid triangular model
@@ -623,7 +702,16 @@ function loadModels() {
                     uvBuffers.push(gl.createBuffer()); // init empty webgl ellipsoid vertex UV buffer
                     gl.bindBuffer(gl.ARRAY_BUFFER, uvBuffers[uvBuffers.length - 1]); // activate that buffer
                     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(ellipsoidModel.uvs), gl.STATIC_DRAW); // data in
-        
+
+                    // set up ellipsoid textureID
+                    if (ellipsoid.texture != String.null
+                            && ellipsoid.texture != "") {
+                        ellipsoidModel.glTextureID = loadImage(INPUT_PROG_URL + ellipsoid.texture, false).id; // has texture
+                    }
+                    else {
+                        ellipsoidModel.glTextureID = -1; // no texture
+                    }
+
                     triSetSizes.push(ellipsoidModel.triangles.length);
     
                     // send the triangle indices to webGL
@@ -694,8 +782,8 @@ function setupShaders() {
         uniform vec3 uSpecular; // the specular reflectivity
         uniform float uShininess; // the specular exponent
         uniform float uAlpha; // the alpha value
-
         uniform sampler2D uTextureID; // ID of texture to use
+        uniform bool uHasTexture; // whether or not the shader should read the texture
         
         // geometry properties
         varying vec3 vWorldPos; // world xyz of fragment
@@ -720,7 +808,7 @@ function setupShaders() {
             vec3 specular = uSpecular*uLightSpecular*highlight; // specular term
 
             // combine to output color
-            if (true) { // if has a texture
+            if (uHasTexture) { // if has a texture
                 vec4 texelValues = texture2D(uTextureID, vVertexUV);
                 vec3 colorOut = ambient + diffuse + specular; // includes texture color
                 //vec3 colorOut = vec3(texelValues.x, texelValues.y, texelValues.z); // only texture color
@@ -786,6 +874,7 @@ function setupShaders() {
                 shininessULoc = gl.getUniformLocation(shaderProgram, "uShininess"); // ptr to shininess
                 alphaULoc = gl.getUniformLocation(shaderProgram, "uAlpha"); // ptr to alpha
                 textureIDULoc = gl.getUniformLocation(shaderProgram, "uTextureID"); // ptr to textureID
+                hasTextureULoc = gl.getUniformLocation(shaderProgram, "uHasTexture"); // ptr to textureID
                 
                 // pass global constants into fragment uniforms
                 gl.uniform3fv(eyePositionULoc,Eye); // pass in the eye's position
@@ -879,6 +968,7 @@ function renderModels() {
             gl.uniform1f(shininessULoc, currSet.material.n); // pass in the specular exponent
             gl.uniform1f(alphaULoc, currSet.material.alpha); // pass in the alpha value
             gl.uniform1i(textureIDULoc, currSet.glTextureID); // pass in the textureID value
+            gl.uniform1i(hasTextureULoc, (currSet.glTextureID >= 0)); // pass in the hasTexture value
             //console.log("| " + whichTriSet + " currSet.glTextureID: " + currSet.glTextureID);
 
             // vertex buffer: activate and feed into vertex shader
@@ -899,11 +989,16 @@ function renderModels() {
     }
 
     // render each ellipsoid
+    gl.depthMask(true);
     if (showEllispoids) {
         var ellipsoid, instanceTransform = mat4.create(); // the current ellipsoid and material
 
         for (var whichEllipsoid = 0; whichEllipsoid < numEllipsoids; whichEllipsoid++) {
             ellipsoid = inputEllipsoids[whichEllipsoid];
+
+            if (ellipsoid.alpha != 1.0) {
+                gl.depthMask(false);
+            }
 
             // define model transform, premult with pvmMatrix, feed to vertex shader
             makeModelTransform(ellipsoid);
@@ -917,6 +1012,8 @@ function renderModels() {
             gl.uniform3fv(specularULoc, ellipsoid.specular); // pass in the specular reflectivity
             gl.uniform1f(shininessULoc, ellipsoid.n); // pass in the specular exponent
             gl.uniform1f(alphaULoc, ellipsoid.alpha); // pass in the alpha value
+            gl.uniform1i(textureIDULoc, ellipsoid.glTextureID); // pass in the textureID value
+            gl.uniform1i(hasTextureULoc, (ellipsoid.glTextureID >= 0)); // pass in the hasTexture value
 
             // vertex bufffer
             gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffers[numTriangleSets + whichEllipsoid]); // activate vertex buffer
@@ -926,7 +1023,8 @@ function renderModels() {
             gl.vertexAttribPointer(vNormAttribLoc, 3, gl.FLOAT, false, 0, 0); // feed normal buffer to shader
             // UV buffer
             gl.bindBuffer(gl.ARRAY_BUFFER, uvBuffers[numTriangleSets + whichEllipsoid]); // activate UV buffer
-            gl.vertexAttribPointer(vUVAttribLoc, 3, gl.FLOAT, false, 0, 0); // feed UV buffer to shader
+            gl.vertexAttribPointer(vUVAttribLoc, 2, gl.FLOAT, false, 0, 0); // feed UV buffer to shader
+
             // triangle buffer
             gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, triangleBuffers[numTriangleSets + whichEllipsoid]); // activate tri buffer
 
@@ -936,7 +1034,6 @@ function renderModels() {
     }
 } // end render model
 
-
 /* MAIN -- HERE is where execution begins after window load */
 
 function main() {
@@ -945,6 +1042,7 @@ function main() {
   loadModels(); // load in the models from tri file
   setupShaders(); // setup the webGL shaders
   renderModels(); // draw the triangles using webGL
-    //console.log("numTextures: " + numTextures);
+    console.log("numEllipsoids: " + numEllipsoids);
+    console.log("numTextures: " + numTextures);
     
 } // end main
