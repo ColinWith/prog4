@@ -1,7 +1,8 @@
 /* GLOBAL CONSTANTS AND VARIABLES */
 
 /* assignment specific globals */
-const INPUT_PROG_URL = "https://ncsucgclass.github.io/prog4/";
+//const INPUT_PROG_URL = "https://ncsucgclass.github.io/prog4/";
+const INPUT_PROG_URL = "https://colinwith.github.io/prog4/";
 const INPUT_TRIANGLES_URL = "https://ncsucgclass.github.io/prog4/triangles.json"; // triangles file loc
 const INPUT_ELLIPSOIDS_URL = "https://ncsucgclass.github.io/prog4/ellipsoids.json"; // ellipsoids file loc
 //const INPUT_ELLIPSOIDS_URL = null; // ellipsoids file loc
@@ -1277,7 +1278,7 @@ var testInputTriangles = [
         "active": true
     },
     {
-        "material": { "ambient": [0.1, 0.1, 0.1], "diffuse": [0.8000, 0.2126, 0.1469], "specular": [0.6, 0.6, 0.6], "n": 5, "alpha": 0.99, "texture": "tree.png" },
+        "material": { "ambient": [0.1, 0.1, 0.1], "diffuse": [0.8000, 0.2126, 0.1469], "specular": [0.6, 0.6, 0.6], "n": 5, "alpha": 0.99, "texture": "MyHand1_square.png" },
         //"vertices": [[1.05, 1.10, 0.25], [0.95, 1.10, 0.25], [0.95, 1.0, 0.25], [1.05, 1.0, 0.25]],
         "vertices": [[1.05, 1.05, 0.15], [0.95, 1.05, 0.15], [0.95, 1.05, 0.25], [1.05, 1.05, 0.25]],
         "normals": [[0.0, 0.0, -1.0], [0.0, 0.0, -1.0], [0.0, 0.0, -1.0], [0.0, 0.0, -1.0]],
@@ -1291,7 +1292,7 @@ var testInputTriangles = [
         "active": true
     },
     {
-        "material": { "ambient": [0.1, 0.1, 0.1], "diffuse": [0.8000, 0.2126, 0.1469], "specular": [0.6, 0.6, 0.6], "n": 5, "alpha": 0.99, "texture": "tree.png" },
+        "material": { "ambient": [0.1, 0.1, 0.1], "diffuse": [0.8000, 0.2126, 0.1469], "specular": [0.6, 0.6, 0.6], "n": 5, "alpha": 0.99, "texture": "MyHand1_square.png" },
         //"vertices": [[1.05, 1.075, 0.25], [0.95, 1.075, 0.25], [0.95, 1.0, 0.25], [1.05, 1.0, 0.25]],
         "vertices": [[1.05, 1.05, 0.175], [0.95, 1.05, 0.175], [0.95, 1.05, 0.25], [1.05, 1.05, 0.25]],
         "normals": [[0.0, 0.0, -1.0], [0.0, 0.0, -1.0], [0.0, 0.0, -1.0], [0.0, 0.0, -1.0]],
